@@ -2,7 +2,7 @@
 
 # 🖼️ Atenea Image Resizer
 
-**Bulk-resize images to a fixed pixel size while preserving proportions and transparency.**
+**Atenea-resize images to a fixed pixel size while preserving proportions and transparency.**
 No internet connection required. Just open, select, and resize.
 
 ![Version](https://img.shields.io/badge/version-v2026-F5A800?style=flat-square&labelColor=1a1a1a)
