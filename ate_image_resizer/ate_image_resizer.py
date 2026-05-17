@@ -58,8 +58,8 @@ EXT_MAP = {
 # FUNCIÓN DE REDIMENSIONADO
 # ==========================================================
 def redimensionar_imagenes(entradas, carpeta_salida, ancho, alto,
-                            callback_progreso, callback_log, callback_fin,
-                            ignorar_menores=False):
+                           callback_progreso, callback_log, callback_fin,
+                           ignorar_menores=False):
     if not os.path.exists(carpeta_salida):
         os.makedirs(carpeta_salida)
 
@@ -185,13 +185,11 @@ class AteneaResizer(ctk.CTk):
         self.configure(fg_color=BG_APP)
 
         # ── Escala DPI ──────────────────────────────────────
-        # Obtenemos el DPI real del monitor y calculamos un factor
-        # relativo a 96 dpi (referencia 1080p estándar).
         self.update_idletasks()
-        dpi    = self.winfo_fpixels("1i")          # píxeles por pulgada reales
-        self._sf = dpi / 96.0                      # scale factor
+        dpi    = self.winfo_fpixels("1i")          
+        self._sf = dpi / 96.0                      
 
-        # Tamaño de ventana: 38% del ancho de pantalla, máx 700 lógicos
+        # Tamaño de ventana inicial
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         win_w = min(int(sw * 0.38), int(700 * self._sf))
@@ -201,15 +199,18 @@ class AteneaResizer(ctk.CTk):
 
         self.title("Atenea Image Resizer")
         self.geometry(f"{win_w}x{win_h}+{x}+{y}")
-        self.resizable(False, False)
-        self._win_w = win_w
+        
+        # ── HABILITAR REDIMENSIÓN CON EL RATÓN ────────────────
+        self.resizable(True, True)
+        
+        # Definimos un tamaño mínimo para que el diseño no se rompa
+        self.minsize(int(400 * self._sf), int(600 * self._sf))
 
         self.selected_files  = []
         self.selected_preset = 1
         self._set_icon()
         self._build_ui()
 
-    # Función de escala: convierte unidades "base 96dpi" a píxeles reales
     def S(self, value):
         return max(1, int(round(value * self._sf)))
 
@@ -233,7 +234,6 @@ class AteneaResizer(ctk.CTk):
     def _build_ui(self):
         S   = self.S
         pad = {"padx": S(28)}
-        inner_w = self._win_w - S(56)   # ancho disponible descontando padx×2
 
         # ── HEADER ──────────────────────────────────────────
         hdr = ctk.CTkFrame(self, fg_color="transparent")
@@ -265,15 +265,19 @@ class AteneaResizer(ctk.CTk):
         SectionLabel(self, "Input", S).pack(anchor="w", **pad)
         ctk.CTkFrame(self, fg_color="transparent", height=S(6)).pack()
 
-        self.entry_in = DarkEntry(self, S, width=inner_w, placeholder_text="Select a folder or files…")
-        self.entry_in.pack(**pad)
+        self.entry_in = DarkEntry(self, S, placeholder_text="Select a folder or files…")
+        self.entry_in.pack(**pad, fill="x")
         ctk.CTkFrame(self, fg_color="transparent", height=S(6)).pack()
 
         btn_row1 = ctk.CTkFrame(self, fg_color="transparent")
         btn_row1.pack(**pad, fill="x")
-        half = (inner_w - S(8)) // 2
-        DarkButton(btn_row1, S, text="  Folder", width=half, command=self.select_folder).pack(side="left", padx=(0, S(8)))
-        DarkButton(btn_row1, S, text="  Files",  width=half, command=self.select_files).pack(side="left")
+        
+        # Grid responsivo para los botones superiores
+        btn_row1.grid_columnconfigure(0, weight=1)
+        btn_row1.grid_columnconfigure(1, weight=1)
+        
+        DarkButton(btn_row1, S, text="  Folder", command=self.select_folder).grid(row=0, column=0, padx=(0, S(4)), sticky="ew")
+        DarkButton(btn_row1, S, text="  Files",  command=self.select_files).grid(row=0, column=1, padx=(S(4), 0), sticky="ew")
 
         # ── FORMAT FILTER ────────────────────────────────────
         ctk.CTkFrame(self, fg_color="transparent", height=S(14)).pack()
@@ -282,14 +286,14 @@ class AteneaResizer(ctk.CTk):
 
         self.fmt_menu = ctk.CTkOptionMenu(
             self, values=list(EXT_MAP.keys()),
-            width=inner_w, height=S(36),
+            height=S(36),
             fg_color=BG_SURFACE, button_color=BG_BTN, button_hover_color=BG_BTN_HOV,
             dropdown_fg_color=BG_SURFACE2, dropdown_hover_color=BG_BTN,
             text_color=TXT_SECONDARY, dropdown_text_color=TXT_SECONDARY,
             corner_radius=S(7), font=("Segoe UI", S(12))
         )
         self.fmt_menu.set("All formats")
-        self.fmt_menu.pack(**pad)
+        self.fmt_menu.pack(**pad, fill="x")
 
         Divider(self).pack(fill="x", padx=S(28), pady=(S(18), 0))
 
@@ -300,11 +304,12 @@ class AteneaResizer(ctk.CTk):
 
         out_row = ctk.CTkFrame(self, fg_color="transparent")
         out_row.pack(**pad, fill="x")
+        
         btn_small = S(40)
-        self.entry_out = DarkEntry(out_row, S, width=inner_w - btn_small - S(8), placeholder_text="Output folder…")
+        self.entry_out = DarkEntry(out_row, S, placeholder_text="Output folder…")
         self.entry_out.insert(0, "resized")
-        self.entry_out.pack(side="left", padx=(0, S(8)))
-        DarkButton(out_row, S, text="…", width=btn_small, command=self.select_out).pack(side="left")
+        self.entry_out.pack(side="left", fill="x", expand=True, padx=(0, S(8)))
+        DarkButton(out_row, S, text="…", width=btn_small, command=self.select_out).pack(side="right")
 
         Divider(self).pack(fill="x", padx=S(28), pady=(S(18), 0))
 
@@ -316,10 +321,9 @@ class AteneaResizer(ctk.CTk):
         chips_frame = ctk.CTkFrame(self, fg_color="transparent")
         chips_frame.pack(**pad, fill="x")
         self.chip_btns = []
-        chip_w = (inner_w - S(8) * 3) // 4
         for col, (label, _) in enumerate(PRESET_SIZES):
             btn = ctk.CTkButton(
-                chips_frame, text=label, height=S(34), width=chip_w,
+                chips_frame, text=label, height=S(34), width=10,
                 fg_color=BG_CHIP, hover_color=BG_CHIP_ON,
                 border_color=BORDER2, border_width=1,
                 text_color=TXT_MUTED, corner_radius=S(7),
@@ -333,12 +337,14 @@ class AteneaResizer(ctk.CTk):
         ctk.CTkFrame(self, fg_color="transparent", height=S(8)).pack()
         self.custom_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.custom_frame.pack(**pad, fill="x")
+        
+        self.custom_frame.grid_columnconfigure(0, weight=1)
+        self.custom_frame.grid_columnconfigure(1, weight=1)
 
-        cw = (inner_w - S(8)) // 2
-        self.entry_w = DarkEntry(self.custom_frame, S, width=cw, placeholder_text="Width px")
-        self.entry_w.pack(side="left", padx=(0, S(8)))
-        self.entry_h = DarkEntry(self.custom_frame, S, width=cw, placeholder_text="Height px")
-        self.entry_h.pack(side="left")
+        self.entry_w = DarkEntry(self.custom_frame, S, placeholder_text="Width px")
+        self.entry_w.grid(row=0, column=0, padx=(0, S(4)), sticky="ew")
+        self.entry_h = DarkEntry(self.custom_frame, S, placeholder_text="Height px")
+        self.entry_h.grid(row=0, column=1, padx=(S(4), 0), sticky="ew")
         self.custom_frame.pack_forget()
 
         self._select_preset(1)
@@ -362,8 +368,7 @@ class AteneaResizer(ctk.CTk):
             onvalue=True, offvalue=False,
             switch_width=S(34), switch_height=S(20),
             button_color="#888888", button_hover_color="#aaaaaa",
-            progress_color="#555555", fg_color="#2e2e2e",
-            command=self._on_toggle
+            progress_color="#555555", fg_color="#2e2e2e"
         )
         self.toggle_btn.pack(side="left", padx=(0, S(12)))
 
@@ -372,11 +377,11 @@ class AteneaResizer(ctk.CTk):
         ctk.CTkLabel(
             txt_col, text="Skip images at or below target resolution",
             font=("Segoe UI", S(12)), text_color=TXT_SECONDARY, anchor="w"
-        ).pack(anchor="w")
+        ).pack(anchor="w", fill="x")
         ctk.CTkLabel(
             txt_col, text="Images ≤ selected size will be ignored",
             font=("Segoe UI", S(10)), text_color=TXT_MUTED, anchor="w"
-        ).pack(anchor="w")
+        ).pack(anchor="w", fill="x")
 
         Divider(self).pack(fill="x", padx=S(28), pady=(S(18), 0))
 
@@ -408,12 +413,12 @@ class AteneaResizer(ctk.CTk):
         # ── LOG ──────────────────────────────────────────────
         ctk.CTkFrame(self, fg_color="transparent", height=S(10)).pack()
         self.log_box = ctk.CTkTextbox(
-            self, width=inner_w, height=S(80),
+            self, height=S(80),
             fg_color=BG_LOG, border_color=BORDER, border_width=1,
             text_color=TXT_LOG_OK, font=("Consolas", S(11)),
             corner_radius=S(7)
         )
-        self.log_box.pack(**pad)
+        self.log_box.pack(**pad, fill="x")
         self.log_box.insert("end", "—  Waiting for input…")
         self.log_box.configure(state="disabled")
 
@@ -425,10 +430,10 @@ class AteneaResizer(ctk.CTk):
             border_color="#444444", border_width=1,
             text_color=TXT_PRIMARY, corner_radius=S(8),
             font=("Segoe UI", S(13), "bold"),
-            height=S(44), width=inner_w,
+            height=S(44),
             command=self.start_resize
         )
-        self.btn_resize.pack(**pad)
+        self.btn_resize.pack(**pad, fill="x")
 
         # ── FOOTER ───────────────────────────────────────────
         ctk.CTkLabel(
@@ -449,9 +454,6 @@ class AteneaResizer(ctk.CTk):
             self.custom_frame.pack(padx=self.S(28), fill="x")
         else:
             self.custom_frame.pack_forget()
-
-    def _on_toggle(self):
-        pass
 
     # ----------------------------------------------------------
     def select_folder(self):

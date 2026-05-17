@@ -5,7 +5,7 @@ a = Analysis(
     ['ate_image_resizer.py'],
     pathex=[],
     binaries=[],
-    datas=[('logo.ico', '.'), ('logo.png', '.')],
+    datas=[('logo.png', '.'), ('logo.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
